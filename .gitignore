@@ -3,6 +3,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Ignore application.properties
+application.properties
+
 # Ignore private certs
 certs/private
 

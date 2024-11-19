@@ -17,7 +17,7 @@ public class Main {
         System.setProperty("http.proxyHost", "");
         System.setProperty("http.proxyPort", "80");
 
-        // Read config from phile
+        // Read config from file
         Properties config = new Properties();
 
         try {

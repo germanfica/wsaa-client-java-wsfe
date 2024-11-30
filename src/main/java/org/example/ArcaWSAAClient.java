@@ -16,10 +16,7 @@ import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 import javax.xml.rpc.ParameterMode;
 
-import org.apache.axis.client.Call;
-import org.apache.axis.client.Service;
-import org.apache.axis.encoding.Base64;
-import org.apache.axis.encoding.XMLType;
+
 
 
 import org.bouncycastle.cms.*;
@@ -46,38 +43,54 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.axis2.client.ServiceClient;
+import org.apache.axis2.client.Options;
+import org.apache.axis2.addressing.EndpointReference;
+import org.apache.axiom.om.OMElement;
+import org.apache.axiom.om.OMFactory;
+import org.apache.axiom.om.OMNamespace;
+import org.apache.axiom.om.OMAbstractFactory;
+import org.apache.commons.codec.binary.Base64;
+
 // import com.sun.org.apache.xerces.internal.jaxp.datatype.XMLGregorianCalendarImpl;
 
 
 public class ArcaWSAAClient {
 
-    static String invoke_wsaa (byte [] LoginTicketRequest_xml_cms, String endpoint) throws Exception {
+    static String invoke_wsaa(byte[] loginTicketRequestXmlCms, String endpoint) throws Exception {
+        String loginTicketResponse = null;
 
-        String LoginTicketResponse = null;
         try {
+            // Crear el ServiceClient
+            ServiceClient serviceClient = new ServiceClient();
 
-            Service service = new Service();
-            Call call = (Call) service.createCall();
+            // Configurar las opciones del cliente
+            Options options = new Options();
+            options.setTo(new EndpointReference(endpoint));
+            options.setAction("urn:loginCms"); // Acción SOAP, según el WSDL
+            serviceClient.setOptions(options);
 
-            //
-            // Prepare the call for the Web service
-            //
-            call.setTargetEndpointAddress( new java.net.URL(endpoint) );
-            call.setOperationName("loginCms");
-            call.addParameter( "request", XMLType.XSD_STRING, ParameterMode.IN );
-            call.setReturnType( XMLType.XSD_STRING );
+            // Crear el payload de la solicitud
+            OMFactory fac = OMAbstractFactory.getOMFactory();
+            OMNamespace omNs = fac.createOMNamespace("http://wsaa.view.sua.dvadac.desein.afip.gov", "ns1");
+            OMElement method = fac.createOMElement("loginCms", omNs);
+            OMElement value = fac.createOMElement("request", omNs);
 
-            //
-            // Make the actual call and assign the answer to a String
-            //
-            LoginTicketResponse = (String) call.invoke(new Object [] {
-                    Base64.encode (LoginTicketRequest_xml_cms) } );
+            // Codificar en Base64 y establecer el valor
+            String encodedRequest = Base64.encodeBase64String(loginTicketRequestXmlCms);
+            value.setText(encodedRequest);
+            method.addChild(value);
 
+            // Invocar el servicio y obtener la respuesta
+            OMElement response = serviceClient.sendReceive(method);
+            loginTicketResponse = response.getFirstElement().getText();
 
         } catch (Exception e) {
             e.printStackTrace();
+            throw e;
         }
-        return (LoginTicketResponse);
+
+        return loginTicketResponse;
     }
 
     //

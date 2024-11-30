@@ -44,7 +44,7 @@ public class Main {
         System.setProperty("javax.net.ssl.trustStore", config.getProperty("trustStore",""));
         System.setProperty("javax.net.ssl.trustStorePassword",config.getProperty("trustStore_password",""));
 
-        Long TicketTime = new Long(config.getProperty("TicketTime","36000"));
+        Long TicketTime = Long.valueOf(config.getProperty("TicketTime","36000"));
 
         // Create LoginTicketRequest_xml_cms
         byte [] LoginTicketRequest_xml_cms = ArcaWSAAClient.create_cms(p12file, p12pass,

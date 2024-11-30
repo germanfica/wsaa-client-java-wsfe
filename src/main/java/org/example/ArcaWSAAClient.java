@@ -106,6 +106,9 @@ public class ArcaWSAAClient {
         //
         LoginTicketRequest_xml = create_LoginTicketRequest(SignerDN, dstDN, service, TicketTime);
 
+        System.out.println("Generated LoginTicketRequest XML:");
+        System.out.println(LoginTicketRequest_xml);
+
         //
         // Create CMS Message
         //
@@ -145,11 +148,11 @@ public class ArcaWSAAClient {
         // Obtener la fecha actual
         Date GenTime = new Date();
 
-        // Configurar tiempos de generación y expiración
+        // Configurar tiempos de generación y expiración con un desfase de 10 minutos
         GregorianCalendar gentime = new GregorianCalendar();
         GregorianCalendar exptime = new GregorianCalendar();
-        gentime.setTime(GenTime);
-        exptime.setTime(new Date(GenTime.getTime() + TicketTime));
+        gentime.setTime(new Date(GenTime.getTime() - 10 * 60 * 1000)); // Resta 10 minutos
+        exptime.setTime(new Date(GenTime.getTime() + 10 * 60 * 1000)); // Suma 10 minutos
 
         // Convertir GregorianCalendar a XMLGregorianCalendar
         DatatypeFactory datatypeFactory = null;
@@ -171,8 +174,8 @@ public class ArcaWSAAClient {
                 + "<source>" + SignerDN + "</source>"
                 + "<destination>" + dstDN + "</destination>"
                 + "<uniqueId>" + UniqueId + "</uniqueId>"
-                + "<generationTime>" + XMLGenTime + "</generationTime>"
-                + "<expirationTime>" + XMLExpTime + "</expirationTime>"
+                + "<generationTime>" + XMLGenTime.toXMLFormat().split("\\.")[0] + "</generationTime>"
+                + "<expirationTime>" + XMLExpTime.toXMLFormat().split("\\.")[0] + "</expirationTime>"
                 + "</header>"
                 + "<service>" + service + "</service>"
                 + "</loginTicketRequest>";

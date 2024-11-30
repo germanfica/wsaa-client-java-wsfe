@@ -89,15 +89,6 @@
             <version>1.6.3</version>
         </dependency>
 
-        <!-- Bouncy Castle -->
-        <!-- https://mvnrepository.com/artifact/org.bouncycastle/bcmail-jdk14 -->
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcmail-jdk14</artifactId>
-            <version>1.45</version>
-        </dependency>
-
-
         <!-- https://mvnrepository.com/artifact/org.bouncycastle/bcpkix-jdk18on -->
         <dependency>
             <groupId>org.bouncycastle</groupId>

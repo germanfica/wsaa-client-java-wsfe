@@ -25,6 +25,26 @@ import org.apache.axis.encoding.XMLType;
 import org.bouncycastle.cms.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaCertStore;
+import org.bouncycastle.cms.CMSProcessableByteArray;
+import org.bouncycastle.cms.CMSSignedData;
+import org.bouncycastle.cms.CMSSignedDataGenerator;
+import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import org.bouncycastle.util.Store;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
+import java.io.FileInputStream;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.Security;
+import java.security.cert.CertStore;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.List;
 
 // import com.sun.org.apache.xerces.internal.jaxp.datatype.XMLGregorianCalendarImpl;
 
@@ -63,79 +83,77 @@ public class ArcaWSAAClient {
     //
     // Create the CMS Message
     //
-    public static byte [] create_cms (String p12file, String p12pass, String signer, String dstDN, String service, Long TicketTime) {
+    public static byte[] create_cms(String p12file, String p12pass, String signer, String dstDN, String service, Long TicketTime) {
 
         PrivateKey pKey = null;
         X509Certificate pCertificate = null;
-        byte [] asn1_cms = null;
-        CertStore cstore = null;
+        byte[] asn1_cms = null;
+        Store certStore = null;
         String LoginTicketRequest_xml;
         String SignerDN = null;
 
-        //
-        // Manage Keys & Certificates
-        //
         try {
-            // Create a keystore using keys from the pkcs#12 p12file
-            KeyStore ks = KeyStore.getInstance("pkcs12");
-            FileInputStream p12stream = new FileInputStream ( p12file ) ;
+            // Cargar el keystore del archivo PKCS#12
+            KeyStore ks = KeyStore.getInstance("PKCS12");
+            FileInputStream p12stream = new FileInputStream(p12file);
             ks.load(p12stream, p12pass.toCharArray());
             p12stream.close();
 
-            // Get Certificate & Private key from KeyStore
+            // Obtener la clave privada y el certificado del keystore
             pKey = (PrivateKey) ks.getKey(signer, p12pass.toCharArray());
-            pCertificate = (X509Certificate)ks.getCertificate(signer);
+            pCertificate = (X509Certificate) ks.getCertificate(signer);
             SignerDN = pCertificate.getSubjectDN().toString();
 
-            // Create a list of Certificates to include in the final CMS
-            ArrayList<X509Certificate> certList = new ArrayList<X509Certificate>();
+            // Crear una lista de certificados
+            List<X509Certificate> certList = new ArrayList<>();
             certList.add(pCertificate);
 
             if (Security.getProvider("BC") == null) {
                 Security.addProvider(new BouncyCastleProvider());
             }
 
-            cstore = CertStore.getInstance("Collection", new CollectionCertStoreParameters (certList), "BC");
-        }
-        catch (Exception e) {
+            // Crear un Store para los certificados
+            certStore = new JcaCertStore(certList);
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
-        //
-        // Create XML Message
-        //
+        // Crear el XML del LoginTicketRequest
         LoginTicketRequest_xml = create_LoginTicketRequest(SignerDN, dstDN, service, TicketTime);
 
-        System.out.println("Generated LoginTicketRequest XML:");
-        System.out.println(LoginTicketRequest_xml);
-
-        //
-        // Create CMS Message
-        //
         try {
-            // Create a new empty CMS Message
+            // Generar el firmante de contenido
+            ContentSigner contentSigner = new JcaContentSignerBuilder("SHA1withRSA")
+                    .setProvider("BC")
+                    .build(pKey);
+
+            // Configurar la información del firmante
+            JcaSignerInfoGeneratorBuilder signerInfoBuilder = new JcaSignerInfoGeneratorBuilder(
+                    new JcaDigestCalculatorProviderBuilder().setProvider("BC").build()
+            );
+
             CMSSignedDataGenerator gen = new CMSSignedDataGenerator();
+            gen.addSignerInfoGenerator(
+                    signerInfoBuilder.build(contentSigner, new X509CertificateHolder(pCertificate.getEncoded()))
+            );
 
-            // Add a Signer to the Message
-            gen.addSigner(pKey, pCertificate, CMSSignedDataGenerator.DIGEST_SHA1);
+            // Añadir el Store de certificados
+            gen.addCertificates(certStore);
 
-            // Add the Certificate to the Message
-            gen.addCertificatesAndCRLs(cstore);
+            // Añadir los datos XML al CMS
+            CMSProcessableByteArray data = new CMSProcessableByteArray(LoginTicketRequest_xml.getBytes());
 
-            // Add the data (XML) to the Message
-            CMSProcessable data = new CMSProcessableByteArray(LoginTicketRequest_xml.getBytes());
+            // Generar el mensaje CMS
+            CMSSignedData signedData = gen.generate(data, true);
 
-            // Add a Sign of the Data to the Message
-            CMSSignedData signed = gen.generate(data, true, "BC");
-
-            //
-            asn1_cms = signed.getEncoded();
-        }
-        catch (Exception e) {
+            // Obtener los bytes ASN.1
+            asn1_cms = signedData.getEncoded();
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
-        return (asn1_cms);
+        return asn1_cms;
     }
 
     //
